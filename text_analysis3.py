@@ -114,9 +114,11 @@ def get_goog_publish_data(df):
         time.sleep(1)#np.random.randint(1,15))
         if count/float(5) == int(count/5):
             A1 = pd.read_csv('google_scrape.csv')
+            A1 = A1.drop_duplicates(subset = ['date', 'title'])
             A1 = A1[['title', 'date']]
             A2 = pd.DataFrame({'title': title_list, 'date': date})
             A = pd.concat([A1, A2])
+            #A = A.drop_duplicates(subset = ['date', 'title'])
             A.to_csv('google_scrape.csv', encoding='utf-8')
             #with open('google_scrape.csv', 'a') as f:
             #    A.to_csv(f, header=False)
@@ -153,19 +155,32 @@ def clean_gut(gut_array):
             yr.append(None)
     return yr
 
+
 def clean_goog(goog_array):
     yr = []
-    for dt in goog_array:
+
+    for date in goog_array:
+        success = 0
         try:
-            dt_string = str(dt).split('[')[1].split(']')[0]
+            dt_string = str(date).split('[')[-1].split("u'")[-1].split(']')[0].split("'")[0].split(' ')[-1]
+            '''
             for dt in dt_string.split(' '):
                 if (len(dt) == 4) & ((dt[0] == '1') | (dt[0] == '2')):
                     yr.append(dt)
+            '''
+            yr.append(dt_string)
+            success = 1
+
         except:
+            pass
+
+        if success == 0:
             yr.append(None)
+
     return yr
 
 
+'''
 def clean_goog2(goog_array):
     yr = []
     for dt in goog_array:
@@ -177,7 +192,7 @@ def clean_goog2(goog_array):
         except:
             yr.append(None)
     return yr
-
+'''
 
 def get_year(r):
     if r.dt_w1 > 1000:
@@ -186,8 +201,8 @@ def get_year(r):
         return r.dt_w2
     elif r.dt_g > 1000:
         return r.dt_g
-    elif r.dt_gut > 1000:
-        return r.dt_gut
+    #elif r.dt_gut > 1000:
+    #    return r.dt_gut
     else:
         return None
 
@@ -206,6 +221,7 @@ if __name__ == '__main__':
     df2 = df1.merge(df_wiki2[df_wiki2.attribute == 'Publication date'], how = 'left', on = 'url')
     df3 = df2.merge(df_wiki3[df_wiki3.attribute == 'Publication date'], how = 'left', on = 'url')
 
+
     rnd = 0
     max_i = 50
     while rnd <= max_i:
@@ -216,14 +232,14 @@ if __name__ == '__main__':
         df4['dt_gut'] = clean_gut(df4['dt_gut'])
         df4['dt_w1'] = clean_wiki(df4['dt_w1'])
         df4['dt_w2'] = clean_wiki(df4['dt_w2'])
-        df4['dt_g'] = clean_goog2(df4['dt_g'])
+        df4['dt_g'] = clean_goog(df4['dt_g'])
 
         y = []
         for i in xrange(len(df4)):
             r = df4.iloc[i,:]
             y.append(get_year(r))
 
-        df_for_google = df4[[x is None for x in df4.dt_g]]
+        df_for_google = df4[df4.dt_g.map(lambda x: x == 'nan')]
         rand_rows = np.random.randint(1, len(df_for_google), 25)
         df_for_google = df_for_google.iloc[rand_rows,:]
         date, title_list = get_goog_publish_data(df_for_google[['title', 'author']])
@@ -231,14 +247,39 @@ if __name__ == '__main__':
         time.sleep(10*60)
         print '{}/{} rounds completed'.format(rnd, max_i)
 
-    '''
+
+    df_goog = pd.read_csv('google_scrape.csv')
+    df4 = df3.merge(df_goog, how = 'left', left_on = 'title_x', right_on ='title')
+    df4 = df4[['author', 'file', 'title_x', 'year_x', 'value_x', 'value_y', 'date']]
+    df4.columns = ['author', 'file', 'title', 'dt_gut', 'dt_w1', 'dt_w2', 'dt_g']
+    df4['dt_gut'] = clean_gut(df4['dt_gut'])
+    df4['dt_w1'] = clean_wiki(df4['dt_w1'])
+    df4['dt_w2'] = clean_wiki(df4['dt_w2'])
+    df4['dt_g'] = clean_goog(df4['dt_g'])
+
+    y = []
+    for i in xrange(len(df4)):
+        r = df4.iloc[i,:]
+        y.append(get_year(r))
     df4['year'] = y
+
     pd.to_numeric(df4['year'], errors='coerce')
 
-    df5 = df4[df4.year > 1000]
+    df5 = df4[df4.year != 'nan']
     df5['year'] = df5['year'].astype('int')
-    df5.to_csv('allbookdata.csv')
-    '''
+    df5 = df5.drop_duplicates(subset = ['author', 'title'])
+
+    novelists = pd.read_csv('list_of_novelists.csv', sep = '\t')
+    novelists.columns = ['author', 'nationality']
+    all_data = pd.merge(df5, novelists, on = 'author')
+
+    bins = [1000, 1800, 1850, 1860, 1870, 1880, 1890, 1900, 1910, 1920, 1930, 1940, 3000]
+    year_range = pd.cut(all_data['year'], bins)
+    year_range = [year_range[i].split('(')[1].split(',')[1].strip()[0:4] for i in xrange(len(year_range))]
+    all_data['year_range'] = year_range
+
+    all_data[['author', 'title', 'file', 'nationality', 'year', 'year_range']].to_csv('allbookdata.csv')
+
 
     #plt.hist(df4['year'], bins = range(1800,1980,10))
     #plt.show()
