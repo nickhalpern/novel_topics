@@ -209,19 +209,19 @@ def get_year(r):
 
 
 if __name__ == '__main__':
-    df_author = pd.read_csv('list_of_novelists.csv', sep = '\t')
+    df_author = pd.read_csv('list_of_novelists.csv', sep = ',')
+    df_author = df_author[['author', 'nationality']]
     df_books = pd.read_csv('book_data.csv')
     df_wiki = pd.read_csv('wikipedia_book_data.csv')
     df_wiki2 = pd.read_csv('wikipedia_book_detailed_data.csv')
     df_wiki3 = pd.read_csv('wikipedia_imputed_url_data.csv')
-    df_author.columns = ['author', 'nationality']
     df = pd.merge(df_author, df_books, on = 'author')
     df['url'] = ['/wiki/{}'.format(str(z).replace(' ', '_')) for z in df.title]
     df1 = df.merge(df_wiki, how = 'left', on = 'url')
     df2 = df1.merge(df_wiki2[df_wiki2.attribute == 'Publication date'], how = 'left', on = 'url')
     df3 = df2.merge(df_wiki3[df_wiki3.attribute == 'Publication date'], how = 'left', on = 'url')
 
-
+    '''
     rnd = 0
     max_i = 50
     while rnd <= max_i:
@@ -246,7 +246,7 @@ if __name__ == '__main__':
         rnd += 1
         time.sleep(10*60)
         print '{}/{} rounds completed'.format(rnd, max_i)
-
+    '''
 
     df_goog = pd.read_csv('google_scrape.csv')
     df4 = df3.merge(df_goog, how = 'left', left_on = 'title_x', right_on ='title')
@@ -269,9 +269,9 @@ if __name__ == '__main__':
     df5['year'] = df5['year'].astype('int')
     df5 = df5.drop_duplicates(subset = ['author', 'title'])
 
-    novelists = pd.read_csv('list_of_novelists.csv', sep = '\t')
-    novelists.columns = ['author', 'nationality']
-    all_data = pd.merge(df5, novelists, on = 'author')
+    #novelists = pd.read_csv('list_of_novelists.csv', sep = '\t')
+    #novelists.columns = ['author', 'nationality']
+    all_data = pd.merge(df5, df_author, on = 'author')
 
     bins = [1000, 1800, 1850, 1860, 1870, 1880, 1890, 1900, 1910, 1920, 1930, 1940, 3000]
     year_range = pd.cut(all_data['year'], bins)
