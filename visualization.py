@@ -20,7 +20,7 @@ def get_data():
     cluster = pd.read_csv('clustering.csv')
     columns = list(cluster.columns)
     columns[0] = 'bookid'
-    columns[-4:] = ['darwin', 'chance_and_luck', 'euclid', 'short_hist_math']
+    #columns[-4:] = ['darwin', 'chance_and_luck', 'euclid', 'short_hist_math']
     cluster.columns = columns
     return X, cluster
 
@@ -99,7 +99,7 @@ def get_moving_avg(cluster, value = 'year_range', agg = 'count'):
 
 def plot_by_cluster(moving_avg_df, labels, color_map, agg_type ='sum', filename_out = 'cluster_over_time.png', title = 'Topic Cluster Over Time'):
 
-    fig = plt.figure()
+    fig = plt.figure(figsize = (20,12))
     fig.suptitle(title, fontsize=12, fontweight='bold')
 
     ax = fig.add_subplot(111, axisbg = 'white')
@@ -117,28 +117,47 @@ def plot_by_cluster(moving_avg_df, labels, color_map, agg_type ='sum', filename_
         spl.set_smoothing_factor(.05)
         plt.plot(xs, np.clip(spl(xs),0,1), label = labels[x], color = color_map[x], linewidth = 2)
 
+    plt.axis([1800,1923,0,1])
     vals = ax.get_yticks()
     ax.set_yticklabels(['{:3.0f}%'.format(x*100) for x in vals])
 
-    plt.legend(labels, fontsize = 'small', frameon = False)
+    plt.legend(labels, fontsize = 'small', frameon = False, loc="best")
+
+    plt.tick_params(top='off', bottom='off', left='off', right='off', labelleft='on', labelbottom='on')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
     fig.savefig(filename_out, facecolor='white', edgecolor='none')
 
 if __name__ == '__main__':
     X, cluster = get_data()
-    labels = ['ships, islands and beaches', 'cowboys and detectives', 'castles and thrones', 'drawingrooms', 'gritty reality']
-    color_map = ['#3498DB', '#CD5C5C', '#00FF00', '#EB984E', '#DCEF28']
+    labels = ['cowboys and detectives', 'castles and thrones', 'ships, islands and beaches', 'gritty reality', 'drawingrooms']
+    color_map = ['#CD5C5C', '#00FF00', '#3498DB', '#DCEF28', '#EB984E']
 
     ### get the graph of five clusters
     #graph_clusters(X, cluster, labels, color_map)
 
     ### graph frequency of cluster over time
-    df_cluster_by_year = get_moving_avg(cluster)
-    plot_by_cluster(df_cluster_by_year, labels, color_map, agg_type = 'sum', filename_out = 'cluster_freq_over_time.png')
+    #df_cluster_by_year = get_moving_avg(cluster)
+    #plot_by_cluster(df_cluster_by_year, labels, color_map, agg_type = 'sum', filename_out = 'cluster_freq_over_time.png')
 
     ### graph frequency of cluster over time
-    df_sentiment_by_year = get_moving_avg(cluster, value = 'pos_score', agg = 'mean')
-    plot_by_cluster(df_sentiment_by_year, labels, color_map, agg_type = 'mean', filename_out = 'pos_sentiment.png', title = 'Book Sentiment Over Time')
+    cluster_american = cluster[cluster.nationality == 'American']
+    df_cluster_by_year = get_moving_avg(cluster_american)
+    plot_by_cluster(df_cluster_by_year, labels, color_map, agg_type = 'sum', filename_out = 'cluster_freq_over_time_us.png', title = 'American Authors')
 
+    ### graph frequency of cluster over time
+    cluster_british = cluster[cluster.nationality == 'British']
+    df_cluster_by_year = get_moving_avg(cluster_british)
+    plot_by_cluster(df_cluster_by_year, labels, color_map, agg_type = 'sum', filename_out = 'cluster_freq_over_time_uk.png', title = 'British Authors')
+
+
+
+    ### graph frequency of cluster over time
+    #df_sentiment_by_year = get_moving_avg(cluster, value = 'pos_score', agg = 'mean')
+    #plot_by_cluster(df_sentiment_by_year, labels, color_map, agg_type = 'mean', filename_out = 'pos_sentiment.png', title = 'Book Sentiment Over Time')
 
     # farmer, farmers, wheat, plant (ranch) (wilderness)
     # machinery, chimney, manager, engine, electric (poverty)

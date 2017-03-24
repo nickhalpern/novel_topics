@@ -157,11 +157,14 @@ def run_k_means(vectorized_data, vectorizer, k_chosen_range = xrange(3,20)):
     cluster_assignment_dict = {}
 
     for k_chosen in k_chosen_range:
-        tfidfed, kmeans, top_words, secondardy_words, cluster_assignment = vectorize_n_kmeans(vectorized_data, vectorizer, n = k_chosen)
+        tfidfed, kmeans, top_words, secondary_words, cluster_assignment = vectorize_n_kmeans(vectorized_data, vectorizer, n = k_chosen)
         top_words_dict[k_chosen] = top_words
         cluster_assignment_dict[k_chosen] = cluster_assignment
         score.append(kmeans.inertia_)
-        print 'Completed Cluster {}:     Score: {}'.format(k_chosen, kmeans.inertia_)
+        for i in xrange(len(top_words)):
+            text = ' '.join(top_words[i]) + ' ' + ' '.join(top_words[i]) + ' ' + ' '.join(secondary_words[i])
+            run_word_cloud(text, i, k_chosen)
+        print '\nCompleted Cluster {}:     Score: {}'.format(k_chosen, kmeans.inertia_)
     score_df = pd.DataFrame({'number_of_clusters': list(k_chosen_range), 'score': score})
     score_df.to_csv('score.csv')
 
@@ -183,21 +186,44 @@ def reconst_mse(target, left, right):
     return (np.array(target - left.dot(right))**2).mean()
 
 def describe_nmf_results(document_term_mat, W, H, component):
-    text_list = []
-    stopwords = set(STOPWORDS)
+    sw = set(STOPWORDS)
     d = path.dirname(__file__)
     for topic_num, topic in enumerate(H):
         print 'Running Cluster: {} for N Components: {}'.format(topic_num, component)
         text1 = " ".join([feature_words[i] for i in topic.argsort()[:-5:-1]])
         text2 = " ".join([feature_words[i] for i in topic.argsort()[:-30:-1]])
         text = text1 + ' ' + text2
-        wc = WordCloud(background_color="white", max_words=2000, stopwords=stopwords)
+        '''
+        wc = WordCloud(background_color="white", max_words=2000, stopwords=sw)
         # generate word cloud
         wc.generate(text)
         # store to file
         file_name = 'word_clouds/{}_cluster_{}.png'.format(component, topic_num)
         wc.to_file(path.join(d, file_name))
+        '''
+        #run_word_cloud(text, component, topic_num)
     return reconst_mse(document_term_mat, W, H)
+
+def run_word_cloud(text, num_clusters, cluster_num):
+    d = path.dirname(__file__)
+    sw = set(STOPWORDS)
+    sw.update('shes', 'av', '8vo', 'youd', 'fourteen', 'yer', 'la', 'weve', \
+            'nay', 'twas', 'sez', 'im', 'hed', 'ha', 'whats', 'er', 'wi', 'didn', \
+            've', 'll', 'don', 'ain', 'couldn', 'doesn', 'wouldn', 'hadn', 'isn', \
+            'hadnt', 'arent', 'youve', 'whats', 'shouldnt', 'theyre', 'maam', 'theyd', \
+            'th', 'weve', 'fer', 'shes', 'hasnt','hadnt', 'un', 'hed', 'im', 'er', \
+            'ah', 'ay', 'wi', 'youd', 'aint')
+
+    querywords = text.split()
+
+    resultwords  = [word for word in querywords if word.lower() not in sw]
+    text = ' '.join(resultwords)
+
+    wc = WordCloud(background_color="white", max_words=8, stopwords=sw)
+    wc.generate(text)
+    file_name = 'word_clouds/{}_cluster_{}.png'.format(cluster_num, num_clusters)
+    wc.to_file(path.join(d, file_name))
+    return
 
 def get_terms_score(terms, vectorizer, X):
     idx = []
@@ -208,11 +234,40 @@ def get_terms_score(terms, vectorizer, X):
             continue
     return np.sum(X[:,idx],axis = 1)
 
-def random_text(df, num_clusters = 5, num_sentences = 10, len_sentences = 30):
+
+def get_term_matrix(df, terms, vectorizer, X):
+    df_terms = pd.DataFrame({'title': df.title, 'author': df.author, 'year': df.year})
+    for word in terms:
+        try:
+            df_terms[word] = X[:,vectorizer.vocabulary_[word]]
+        except:
+            continue
+    df_terms.to_csv('term_matrix.csv')
+    return df_terms
+
+
+def random_text(df, start_words, num_clusters = 5, num_sentences = 30, len_sentences = 30):
     column_name = 'cluster_{}'.format(num_clusters)
+    text = []
+    cluster_num = []
     for c_num in xrange(num_clusters):
+        print '\n \nGenerating sentences for cluster: {}\n'.format(c_num)
         df_c = df[df[column_name] == c_num].reset_index()
         rand_rows = np.random.randint(1, len(df_c), num_sentences)
+        df_c = df_c.iloc[rand_rows,:]
+        for file_name in df_c.file:
+            file_ = open(file_name)
+            markov = Markov.Markov(file_)
+            try:
+                out = markov.generate_markov_text(20, start_words)
+                print '\n\t{}'.format(out)
+                text.append(out)
+                cluster_num.append(c_num)
+            except:
+                continue
+    out_file_name = 'random_sentence_{}.csv'.format(start_words.strip())
+    pd.DataFrame({'cluster_num': cluster_num, 'random_sentence': text}).to_csv(out_file_name)
+    return
 
 if __name__ == '__main__':
     #### read in the novel data
@@ -223,8 +278,10 @@ if __name__ == '__main__':
     with open('novels.dat', 'wb') as outfile:
         pickle.dump(novels, outfile, pickle.HIGHEST_PROTOCOL)
     '''
+    '''
     with open('novels.dat', 'rb') as infile:
         novels = pickle.load(infile)
+    '''
     '''
     novels_all_words = [get_words(df.file[i], True) for i in xrange(len(df))]
     with open('novels_all_words.dat', 'wb') as outfile:
@@ -232,14 +289,24 @@ if __name__ == '__main__':
     '''
     ####
 
-
     #### tfidf the data
+    '''
     vectorized_data, vectorizer = vectorize(novels)
+    with open('vectorized_data.dat', 'wb') as outfile:
+        pickle.dump(vectorized_data, outfile, pickle.HIGHEST_PROTOCOL)
+    with open('vectorizer.dat', 'wb') as outfile:
+        pickle.dump(vectorizer, outfile, pickle.HIGHEST_PROTOCOL)
+    '''
+    with open('vectorized_data.dat', 'rb') as infile:
+        vectorized_data = pickle.load(infile)
+    with open('vectorizer.dat', 'rb') as infile:
+        vectorizer = pickle.load(infile)
     ####
 
+    '''
     #### nmf
     error = []
-    components = range(3,10)
+    components = range(3,21)
     for component in components:
         #### nmf
         print("\n\n---------\nsklearn decomposition")
@@ -252,6 +319,7 @@ if __name__ == '__main__':
         ####
 
     pd.DataFrame({'num_components': components, 'reconst_error': error}).to_csv('nmf_error.csv')
+    '''
 
     #### get sentiment analysis
     #pos_score, neg_score = run_sentiment(novels)
@@ -290,6 +358,14 @@ if __name__ == '__main__':
     output_df.to_csv('clustering.csv', encoding='utf-8')
     #####
 
+    #### print random text
+    random_text(output_df, 'the man')
+    random_text(output_df, 'she said')
+    random_text(output_df, 'it is')
+    random_text(output_df, 'give me')
+    ####
+
+    df_terms = get_term_matrix(df, ['slaves', 'slavery', 'slave', 'negro', 'negroes', 'bet', 'probable', 'model', 'average', 'expectation', 'probability', 'likely', 'likelihood', 'statistic', 'statistics', 'normal', 'professional', 'assistant', 'lawyer', 'contract', 'trade', 'shaft', 'metal', 'rail', 'motor', 'coal', 'railroad', 'railway', 'machinery', 'chimney', 'manager', 'engine', 'electric', 'farmer', 'mill', 'potatoes', 'seed', 'corn', 'farm', 'plant', 'wheat', 'farmers', 'species', 'evolve', 'evolution'], vectorizer, vectorized_data.toarray())
 
     '''
     books_to_choose = ['Bleak House', 'Hard Times', 'Pride and Prejudice', \
