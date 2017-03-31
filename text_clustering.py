@@ -25,30 +25,6 @@ import Markov
 
 # what is most highly correlated with plant through time
 
-'''
-FOR TRAINING
-Agriculture
-    A Short History of English Agriculture
-    Essays in Natural History and Agriculture
-    Agriculture for Beginners, Revised Edition
-    Agriculture in Virginia, 1607-1699
-    The Elements of Agriculture, A Book for Young Farmers, with Questions Prepared for the Use of Schools
-    Notes on Agriculture in Cyprus and Its Products
-    What I know of farming:, a series of brief and plain expositions of practical, agriculture as an art based upon science
-    Makers of Modern Agriculture
-    Observations on the Effects of the Corn Laws, and of a Rise or Fall in the Price of Corn on the Agriculture and General Wealth of the Country
-    Atoms in Agriculture, (Revised)
-Industrial Revolution
-    (Hard Times)
-    (North and South)
-    Textiles, For Commercial, Industrial, and Domestic Arts Schools; Also Adapted to Those Engaged in Wholesale and Retail Dry Goods, Wool, Cotton, and Dressmaker's Trades
-    Industrial Biography, Iron Workers and Tool Makers
-    Industrial Progress and Human Economics
-    An Introduction to the Industrial and Social History of England
-    Life in a Railway Factory
-'''
-
-
 def get_wiki(term):
     w_page = wikipedia.page(term)
     return w_page.content
@@ -204,7 +180,7 @@ def describe_nmf_results(document_term_mat, W, H, component):
         #run_word_cloud(text, component, topic_num)
     return reconst_mse(document_term_mat, W, H)
 
-def run_word_cloud(text, num_clusters, cluster_num):
+def run_word_cloud(text, num_clusters = 5, cluster_num = 5, max_word = 8):
     d = path.dirname(__file__)
     sw = set(STOPWORDS)
     sw.update('shes', 'av', '8vo', 'youd', 'fourteen', 'yer', 'la', 'weve', \
@@ -219,7 +195,7 @@ def run_word_cloud(text, num_clusters, cluster_num):
     resultwords  = [word for word in querywords if word.lower() not in sw]
     text = ' '.join(resultwords)
 
-    wc = WordCloud(background_color="white", max_words=8, stopwords=sw)
+    wc = WordCloud(background_color="white", max_words= max_word, stopwords=sw)
     wc.generate(text)
     file_name = 'word_clouds/{}_cluster_{}.png'.format(cluster_num, num_clusters)
     wc.to_file(path.join(d, file_name))
@@ -235,8 +211,9 @@ def get_terms_score(terms, vectorizer, X):
     return np.sum(X[:,idx],axis = 1)
 
 
-def get_term_matrix(df, terms, vectorizer, X):
-    df_terms = pd.DataFrame({'title': df.title, 'author': df.author, 'year': df.year})
+def get_term_matrix(df, terms, vectorizer, X, pos, neg):
+    net = pos - neg
+    df_terms = pd.DataFrame({'title': df.title, 'author': df.author, 'year': df.year, 'net': net})
     for word in terms:
         try:
             df_terms[word] = X[:,vectorizer.vocabulary_[word]]
@@ -246,7 +223,7 @@ def get_term_matrix(df, terms, vectorizer, X):
     return df_terms
 
 
-def random_text(df, start_words, num_clusters = 5, num_sentences = 30, len_sentences = 30):
+def random_text(df, start_words, num_clusters = 5, num_sentences = 100, len_sentences = 30):
     column_name = 'cluster_{}'.format(num_clusters)
     text = []
     cluster_num = []
@@ -303,10 +280,10 @@ if __name__ == '__main__':
         vectorizer = pickle.load(infile)
     ####
 
-    '''
+
     #### nmf
     error = []
-    components = range(3,21)
+    components = range(1,31)
     for component in components:
         #### nmf
         print("\n\n---------\nsklearn decomposition")
@@ -320,7 +297,8 @@ if __name__ == '__main__':
 
     pd.DataFrame({'num_components': components, 'reconst_error': error}).to_csv('nmf_error.csv')
     '''
-
+    '''
+    '''
     #### get sentiment analysis
     #pos_score, neg_score = run_sentiment(novels)
     with open('pos_score.dat', 'rb') as infile:
@@ -334,21 +312,10 @@ if __name__ == '__main__':
     cluster_assignment_dict = run_k_means(vectorized_data, vectorizer, k_chosen_range)
     ####
 
-    #### term scores
-    farm_score = get_terms_score(['farmer', 'mill', 'potatoes', 'seed', 'corn', 'farm', 'plant', 'wheat', 'farmers'], vectorizer, vectorized_data.toarray())
-    factory_score = get_terms_score(['shaft', 'metal', 'rail', 'motor', 'coal', 'railroad', 'railway', 'machinery', 'chimney', 'manager', 'engine', 'electric'], vectorizer, vectorized_data.toarray())
-    trade_score = get_terms_score(['professional', 'assistant', 'lawyer', 'contract', 'trade'], vectorizer, vectorized_data.toarray())
-    statistics_score = get_terms_score(['bet', 'probable', 'model', 'average', 'expectation', 'probability', 'likely', 'likelihood', 'statistic', 'statistics', 'normal'], vectorizer, vectorized_data.toarray())
-    darwin_score = get_terms_score(['species', 'evolve', 'evolution'], vectorizer, vectorized_data.toarray())
-    slavery_score = get_terms_score(['slaves', 'slavery', 'slave', 'negro', 'negroes'], vectorizer, vectorized_data.toarray())
-    ####
-
     #### create the output file
     output_df = pd.DataFrame({'book_title': df.title, 'author': df.author, 'year': df.year, \
             'year_range': df.year_range, 'nationality': df.nationality, 'pos_score': pos_score, \
-            'neg_score': neg_score, 'farm': farm_score, 'factory': factory_score, \
-            'statistics': statistics_score, 'slavery': slavery_score, 'darwin': darwin_score, \
-            'file': df.file})
+            'neg_score': neg_score, 'file': df.file})
 
     for k_chosen in k_chosen_range:
         column_name = 'cluster_{}'.format(k_chosen)
@@ -358,14 +325,21 @@ if __name__ == '__main__':
     output_df.to_csv('clustering.csv', encoding='utf-8')
     #####
 
+    output_df = pd.read_csv('clustering.csv')
     #### print random text
-    random_text(output_df, 'the man')
-    random_text(output_df, 'she said')
-    random_text(output_df, 'it is')
-    random_text(output_df, 'give me')
+    #random_text(output_df, 'the man')
+    #random_text(output_df, 'she said')
+    #random_text(output_df, 'it is')
+    #random_text(output_df, 'give me')
+    random_text(output_df, 'likely that')
+    random_text(output_df, 'is likely')
+    random_text(output_df, 'how lucky')
+    random_text(output_df, 'the probability')
+    random_text(output_df, 'the chance')
+    random_text(output_df, 'the bet')
     ####
-
-    df_terms = get_term_matrix(df, ['slaves', 'slavery', 'slave', 'negro', 'negroes', 'bet', 'probable', 'model', 'average', 'expectation', 'probability', 'likely', 'likelihood', 'statistic', 'statistics', 'normal', 'professional', 'assistant', 'lawyer', 'contract', 'trade', 'shaft', 'metal', 'rail', 'motor', 'coal', 'railroad', 'railway', 'machinery', 'chimney', 'manager', 'engine', 'electric', 'farmer', 'mill', 'potatoes', 'seed', 'corn', 'farm', 'plant', 'wheat', 'farmers', 'species', 'evolve', 'evolution'], vectorizer, vectorized_data.toarray())
+    '''
+    #df_terms = get_term_matrix(df, ['slaves', 'slavery', 'slave', 'negro', 'negroes', 'bet', 'probable', 'model', 'average', 'expectation', 'probability', 'likely', 'likelihood', 'statistic', 'statistics', 'normal', 'professional', 'assistant', 'lawyer', 'contract', 'trade', 'shaft', 'metal', 'rail', 'motor', 'coal', 'railroad', 'railway', 'machinery', 'chimney', 'manager', 'engine', 'electric', 'farmer', 'mill', 'potatoes', 'seed', 'corn', 'farm', 'plant', 'wheat', 'farmers', 'species', 'evolve', 'evolution'], vectorizer, vectorized_data.toarray(), pos_score, neg_score)
 
     '''
     books_to_choose = ['Bleak House', 'Hard Times', 'Pride and Prejudice', \
@@ -421,4 +395,13 @@ if __name__ == '__main__':
 
     for i in xrange(len(all_terms)):
         output_df[all_terms[i]] = cosine_similarities[train_length:, i]
+
+    #### term scores
+    farm_score = get_terms_score(['farmer', 'mill', 'potatoes', 'seed', 'corn', 'farm', 'plant', 'wheat', 'farmers'], vectorizer, vectorized_data.toarray())
+    factory_score = get_terms_score(['shaft', 'metal', 'rail', 'motor', 'coal', 'railroad', 'railway', 'machinery', 'chimney', 'manager', 'engine', 'electric'], vectorizer, vectorized_data.toarray())
+    trade_score = get_terms_score(['professional', 'assistant', 'lawyer', 'contract', 'trade'], vectorizer, vectorized_data.toarray())
+    statistics_score = get_terms_score(['bet', 'probable', 'model', 'average', 'expectation', 'probability', 'likely', 'likelihood', 'statistic', 'statistics', 'normal'], vectorizer, vectorized_data.toarray())
+    darwin_score = get_terms_score(['species', 'evolve', 'evolution'], vectorizer, vectorized_data.toarray())
+    slavery_score = get_terms_score(['slaves', 'slavery', 'slave', 'negro', 'negroes'], vectorizer, vectorized_data.toarray())
+    ####
     '''
