@@ -18,3 +18,16 @@ The boxes in red show how many books in the earlier cluster transition as cluste
 
 ![Evolution of topics with increasing k](https://github.com/nickhalpern/novel_topics/blob/master/images/num_topics_word_clouds.png)
 
+I determined that five topics was sufficiently granular to divide the universe of novels without making overly fine distinctions.  The chart below shows the vocabulary of each novel embedded into 2 dimensions with TSNE.
+
+![Novel topics](https://github.com/nickhalpern/novel_topics/blob/master/images/topics_and_example_novels.png)
+
+## How do novel topics change over time?
+
+I found that the frequency of topic varied significantly over the period studied.  In particular, the drawingroom category - books about society, marriage/romance, and politics, was very popular in the early 19th century and was gradually joined by books about city life and the American west.
+
+![Frequency Over Time](https://github.com/nickhalpern/novel_topics/blob/master/images/cluster_freq_over_time.png)
+
+The example of books about the American West is a compelling example that novel topics don't reflect the reality of the current period.  As people settled the West, encouraged by the Homestead Act in 1862, there was an increasing number of texts about cowboys and shootouts.  After the US declared the end of the frontier in the census of 1890, novels about the frontier continued to increase!  (It is also interesting to think about all the Western movies in the 1950s and 60s.)
+
+![Wild West US](https://github.com/nickhalpern/novel_topics/blob/master/images/cluster_freq_over_time_us_ww.png)
